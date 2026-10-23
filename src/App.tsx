@@ -4,15 +4,20 @@ import { jsPDF } from 'jspdf'
 import Canvas from './Canvas'
 import { type Design, type DesignElement, type ElementType, FONTS, newId } from './types'
 import { SIZES, TEMPLATES, blankDesign } from './templates'
+import { DEFAULT_FICHA, applyFicha, type Ficha, type PhotoSlot } from './ficha'
+import FichaPanel from './FichaPanel'
 import './App.css'
 
 const STORAGE_KEY = 'meu-editor:design'
-type Tab = 'modelos' | 'elementos' | 'texto' | 'uploads'
+const FICHA_KEY = 'meu-editor:ficha'
+type Tab = 'modelos' | 'imovel' | 'elementos' | 'texto' | 'uploads'
 
 interface History {
   past: Design[]
   present: Design
   future: Design[]
+  // Mudanças seguidas com a mesma chave (ex.: digitar na ficha) viram um só passo de desfazer
+  mergeKey?: string
 }
 
 function loadInitial(): Design {
@@ -25,6 +30,16 @@ function loadInitial(): Design {
   return TEMPLATES[0].build()
 }
 
+function loadFicha(): Ficha {
+  try {
+    const raw = localStorage.getItem(FICHA_KEY)
+    if (raw) return { ...DEFAULT_FICHA, ...(JSON.parse(raw) as Partial<Ficha>) }
+  } catch {
+    /* sem armazenamento disponível */
+  }
+  return DEFAULT_FICHA
+}
+
 export default function App() {
   const [history, setHistory] = useState<History>(() => ({ past: [], present: loadInitial(), future: [] }))
   const design = history.present
@@ -35,6 +50,7 @@ export default function App() {
   const [fontsVersion, setFontsVersion] = useState(0)
   const [exporting, setExporting] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
+  const [ficha, setFicha] = useState<Ficha>(loadFicha)
   const stageRef = useRef<Konva.Stage | null>(null)
   const workspaceRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -45,8 +61,12 @@ export default function App() {
   const selected = design.elements.find((e) => e.id === selectedId) ?? null
 
   // ---------- histórico ----------
-  const commit = useCallback((fn: (d: Design) => Design) => {
-    setHistory((h) => ({ past: [...h.past.slice(-60), h.present], present: fn(h.present), future: [] }))
+  const commit = useCallback((fn: (d: Design) => Design, mergeKey?: string) => {
+    setHistory((h) =>
+      mergeKey && h.mergeKey === mergeKey
+        ? { ...h, present: fn(h.present), future: [] }
+        : { past: [...h.past.slice(-60), h.present], present: fn(h.present), future: [], mergeKey },
+    )
   }, [])
   const undo = useCallback(() => {
     setHistory((h) => (h.past.length ? { past: h.past.slice(0, -1), present: h.past[h.past.length - 1], future: [h.present, ...h.future] } : h))
@@ -55,11 +75,28 @@ export default function App() {
     setHistory((h) => (h.future.length ? { past: [...h.past, h.present], present: h.future[0], future: h.future.slice(1) } : h))
   }, [])
 
+  // Editar um texto ligado à ficha à mão desliga a ligação, para a ficha não sobrescrever
   const updateElement = useCallback(
-    (id: string, patch: Partial<DesignElement>) =>
-      commit((d) => ({ ...d, elements: d.elements.map((e) => (e.id === id ? { ...e, ...patch } : e)) })),
+    (id: string, patch: Partial<DesignElement>) => {
+      const unbind = 'text' in patch && !('textTemplate' in patch) ? { textTemplate: undefined } : {}
+      commit((d) => ({ ...d, elements: d.elements.map((e) => (e.id === id ? { ...e, ...patch, ...unbind } : e)) }))
+    },
     [commit],
   )
+
+  const updateFicha = useCallback(
+    (patch: Partial<Ficha>) => {
+      const next = { ...ficha, ...patch }
+      setFicha(next)
+      commit((d) => applyFicha(d, next), 'ficha')
+    },
+    [commit, ficha],
+  )
+
+  const setFichaPhoto = async (slot: PhotoSlot, file: File) => {
+    const { src } = await readImageFile(file)
+    updateFicha({ [slot]: src })
+  }
 
   const addElement = useCallback(
     (el: Omit<DesignElement, 'id' | 'x' | 'y' | 'rotation' | 'opacity'> & Partial<DesignElement>) => {
@@ -177,12 +214,15 @@ export default function App() {
     const id = replaceTargetRef.current
     if (!id) return
     const { src } = await readImageFile(file)
-    updateElement(id, { src, name: file.name.replace(/\.[^.]+$/, '') })
+    const target = design.elements.find((e) => e.id === id)
+    // Foto ligada à ficha: troca na ficha, e todos os modelos passam a usá-la
+    if (target?.bind) updateFicha({ [target.bind]: src })
+    else updateElement(id, { src, name: file.name.replace(/\.[^.]+$/, '') })
   }
 
   // Sem confirmação: trocar de modelo pode ser desfeito com Ctrl+Z
   const applyTemplate = (build: () => Design) => {
-    commit(() => build())
+    commit(() => applyFicha(build(), ficha))
     setSelectedId(null)
     setZoom(null)
   }
@@ -234,9 +274,17 @@ export default function App() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(design))
     } catch {
-      /* cota excedida ou armazenamento bloqueado */
+      setNotice('O design não pôde ser salvo no navegador: as fotos ocupam espaço demais.')
     }
   }, [design])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(FICHA_KEY, JSON.stringify(ficha))
+    } catch {
+      setNotice('A ficha não pôde ser salva no navegador: as fotos ocupam espaço demais.')
+    }
+  }, [ficha])
 
   // Redesenha os textos quando as fontes web terminam de carregar
   useEffect(() => {
@@ -349,6 +397,7 @@ export default function App() {
         {(
           [
             ['modelos', '▦', 'Modelos'],
+            ['imovel', '⌂', 'Imóvel'],
             ['elementos', '◯', 'Elementos'],
             ['texto', 'T', 'Texto'],
             ['uploads', '⇪', 'Uploads'],
@@ -437,6 +486,7 @@ export default function App() {
             <p className="hint">Dica: dê dois cliques num texto no design para editá-lo.</p>
           </>
         )}
+        {tab === 'imovel' && <FichaPanel ficha={ficha} onChange={updateFicha} onPhoto={setFichaPhoto} />}
         {tab === 'uploads' && (
           <>
             <h3>Uploads</h3>
@@ -699,6 +749,14 @@ function Properties({ el, onChange, onAlign, onLayer, onDuplicate, onDelete, onR
         {el.name}
         {el.locked && <span className="badge">bloqueado</span>}
       </h3>
+
+      {(el.textTemplate || el.bind) && (
+        <p className="hint linked">
+          {el.textTemplate
+            ? 'Ligado à Ficha do imóvel: mude na aba Imóvel. Se editar aqui, este texto deixa de seguir a ficha.'
+            : `Foto ${el.bind!.slice(-1)} da Ficha do imóvel: trocar aqui troca em todos os modelos.`}
+        </p>
+      )}
 
       {el.type === 'text' && (
         <>

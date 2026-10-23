@@ -1,4 +1,5 @@
 import { type Design, type DesignElement, newId } from './types'
+import { DEFAULT_FICHA, fillText, type Ficha } from './ficha'
 
 type Partial = Omit<DesignElement, 'id' | 'rotation' | 'opacity'> & { rotation?: number; opacity?: number }
 
@@ -16,8 +17,21 @@ export function photoPlaceholder(w: number, h: number, tone = '#c9d6e3') {
   return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg)
 }
 
-const photo = (name: string, x: number, y: number, width: number, height: number, extra: { cornerRadius?: number; opacity?: number } = {}) =>
+const photo = (
+  name: string,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  extra: { cornerRadius?: number; opacity?: number; bind?: DesignElement['bind'] } = {},
+) =>
   el({ type: 'image', name, x, y, width, height, src: photoPlaceholder(width, height), ...extra })
+
+// Texto ligado à Ficha do imóvel; o exemplo `f` só define o que aparece na miniatura
+const bound = (textTemplate: string, f: Ficha = DEFAULT_FICHA) => ({ textTemplate, text: fillText(textTemplate, f) })
+
+const ALUGUEL: Ficha = { ...DEFAULT_FICHA, finalidade: 'aluguel', titulo: 'Casa com quintal e piscina', quartos: '4', banheiros: '3', vagas: '3', area: '220', preco: '6500' }
+const COBERTURA: Ficha = { ...DEFAULT_FICHA, titulo: 'Cobertura Duplex', quartos: '4', banheiros: '5', vagas: '3', area: '320', preco: '2400000' }
 
 export interface Template {
   id: string
@@ -287,14 +301,14 @@ export const TEMPLATES: Template[] = [
     build: () => ({
       page: { width: 1080, height: 1350, background: '#0f1c2e' },
       elements: [
-        photo('Foto do imóvel', 0, 0, 1080, 800),
+        photo('Foto do imóvel', 0, 0, 1080, 800, { bind: 'foto1' }),
         el({ type: 'rect', name: 'Etiqueta', x: 60, y: 60, width: 300, height: 84, fill: '#e63946', cornerRadius: 10 }),
-        el({ type: 'text', name: 'Etiqueta texto', x: 60, y: 82, width: 300, height: 44, text: 'À VENDA', fontSize: 44, fontFamily: 'Montserrat', fill: '#ffffff', align: 'center', fontStyle: 'bold', lineHeight: 1 }),
-        el({ type: 'text', name: 'Título', x: 60, y: 850, width: 960, height: 70, text: 'Apartamento 3 quartos', fontSize: 66, fontFamily: 'Poppins', fill: '#ffffff', align: 'left', fontStyle: 'bold', lineHeight: 1 }),
-        el({ type: 'text', name: 'Bairro', x: 60, y: 940, width: 960, height: 44, text: 'Jardins • São Paulo, SP', fontSize: 40, fontFamily: 'Inter', fill: '#9fb3c8', align: 'left', fontStyle: 'normal', lineHeight: 1 }),
-        el({ type: 'text', name: 'Detalhes', x: 60, y: 1020, width: 960, height: 44, text: '3 quartos  •  2 banheiros  •  2 vagas  •  98 m²', fontSize: 38, fontFamily: 'Inter', fill: '#ffffff', align: 'left', fontStyle: 'normal', lineHeight: 1 }),
-        el({ type: 'text', name: 'Preço', x: 60, y: 1110, width: 960, height: 100, text: 'R$ 890.000', fontSize: 96, fontFamily: 'Montserrat', fill: '#f4c95d', align: 'left', fontStyle: 'bold', lineHeight: 1 }),
-        el({ type: 'text', name: 'Contato', x: 60, y: 1260, width: 960, height: 40, text: '(11) 99999-0000  •  CRECI 00000-F', fontSize: 34, fontFamily: 'Inter', fill: '#9fb3c8', align: 'left', fontStyle: 'normal', lineHeight: 1 }),
+        el({ type: 'text', name: 'Etiqueta texto', x: 60, y: 82, width: 300, height: 44, ...bound('{finalidade}'), fontSize: 44, fontFamily: 'Montserrat', fill: '#ffffff', align: 'center', fontStyle: 'bold', lineHeight: 1 }),
+        el({ type: 'text', name: 'Título', x: 60, y: 850, width: 960, height: 70, ...bound('{titulo}'), fontSize: 66, fontFamily: 'Poppins', fill: '#ffffff', align: 'left', fontStyle: 'bold', lineHeight: 1 }),
+        el({ type: 'text', name: 'Bairro', x: 60, y: 940, width: 960, height: 44, ...bound('{local}'), fontSize: 40, fontFamily: 'Inter', fill: '#9fb3c8', align: 'left', fontStyle: 'normal', lineHeight: 1 }),
+        el({ type: 'text', name: 'Detalhes', x: 60, y: 1020, width: 960, height: 44, ...bound('{detalhes}'), fontSize: 38, fontFamily: 'Inter', fill: '#ffffff', align: 'left', fontStyle: 'normal', lineHeight: 1 }),
+        el({ type: 'text', name: 'Preço', x: 60, y: 1110, width: 960, height: 100, ...bound('{preco}'), fontSize: 96, fontFamily: 'Montserrat', fill: '#f4c95d', align: 'left', fontStyle: 'bold', lineHeight: 1 }),
+        el({ type: 'text', name: 'Contato', x: 60, y: 1260, width: 960, height: 40, ...bound('{telefone}  •  CRECI {creci}'), fontSize: 34, fontFamily: 'Inter', fill: '#9fb3c8', align: 'left', fontStyle: 'normal', lineHeight: 1 }),
       ],
     }),
   },
@@ -305,14 +319,14 @@ export const TEMPLATES: Template[] = [
     build: () => ({
       page: { width: 1080, height: 1920, background: '#111111' },
       elements: [
-        photo('Foto do imóvel', 0, 0, 1080, 1920),
+        photo('Foto do imóvel', 0, 0, 1080, 1920, { bind: 'foto1' }),
         el({ type: 'rect', name: 'Sombra', x: 0, y: 1080, width: 1080, height: 840, fill: '#000000', opacity: 0.6 }),
         el({ type: 'rect', name: 'Etiqueta', x: 80, y: 1160, width: 400, height: 90, fill: '#2a9d8f', cornerRadius: 45 }),
-        el({ type: 'text', name: 'Etiqueta texto', x: 80, y: 1184, width: 400, height: 44, text: 'PARA ALUGAR', fontSize: 42, fontFamily: 'Montserrat', fill: '#ffffff', align: 'center', fontStyle: 'bold', lineHeight: 1 }),
-        el({ type: 'text', name: 'Título', x: 80, y: 1300, width: 920, height: 200, text: 'Casa com\nquintal e piscina', fontSize: 92, fontFamily: 'Poppins', fill: '#ffffff', align: 'left', fontStyle: 'bold', lineHeight: 1.05 }),
-        el({ type: 'text', name: 'Detalhes', x: 80, y: 1530, width: 920, height: 50, text: '4 quartos  •  3 vagas  •  220 m²', fontSize: 44, fontFamily: 'Inter', fill: '#e6e6e6', align: 'left', fontStyle: 'normal', lineHeight: 1 }),
-        el({ type: 'text', name: 'Preço', x: 80, y: 1620, width: 920, height: 100, text: 'R$ 6.500/mês', fontSize: 90, fontFamily: 'Montserrat', fill: '#7ee0d2', align: 'left', fontStyle: 'bold', lineHeight: 1 }),
-        el({ type: 'text', name: 'Contato', x: 80, y: 1780, width: 920, height: 44, text: 'Chame no WhatsApp: (11) 99999-0000', fontSize: 40, fontFamily: 'Inter', fill: '#ffffff', align: 'left', fontStyle: 'normal', lineHeight: 1 }),
+        el({ type: 'text', name: 'Etiqueta texto', x: 80, y: 1184, width: 400, height: 44, ...bound('{finalidade}', ALUGUEL), fontSize: 42, fontFamily: 'Montserrat', fill: '#ffffff', align: 'center', fontStyle: 'bold', lineHeight: 1 }),
+        el({ type: 'text', name: 'Título', x: 80, y: 1300, width: 920, height: 200, ...bound('{titulo}', ALUGUEL), fontSize: 92, fontFamily: 'Poppins', fill: '#ffffff', align: 'left', fontStyle: 'bold', lineHeight: 1.05 }),
+        el({ type: 'text', name: 'Detalhes', x: 80, y: 1530, width: 920, height: 50, ...bound('{detalhes}', ALUGUEL), fontSize: 44, fontFamily: 'Inter', fill: '#e6e6e6', align: 'left', fontStyle: 'normal', lineHeight: 1 }),
+        el({ type: 'text', name: 'Preço', x: 80, y: 1620, width: 920, height: 100, ...bound('{preco}', ALUGUEL), fontSize: 90, fontFamily: 'Montserrat', fill: '#7ee0d2', align: 'left', fontStyle: 'bold', lineHeight: 1 }),
+        el({ type: 'text', name: 'Contato', x: 80, y: 1780, width: 920, height: 44, ...bound('Chame no WhatsApp: {telefone}'), fontSize: 40, fontFamily: 'Inter', fill: '#ffffff', align: 'left', fontStyle: 'normal', lineHeight: 1 }),
       ],
     }),
   },
@@ -323,12 +337,12 @@ export const TEMPLATES: Template[] = [
     build: () => ({
       page: { width: 1080, height: 1080, background: '#111111' },
       elements: [
-        photo('Foto do imóvel', 0, 0, 1080, 1080),
+        photo('Foto do imóvel', 0, 0, 1080, 1080, { bind: 'foto1' }),
         el({ type: 'rect', name: 'Escurecer', x: 0, y: 0, width: 1080, height: 1080, fill: '#000000', opacity: 0.3 }),
         el({ type: 'rect', name: 'Faixa', x: -100, y: 520, width: 1300, height: 190, fill: '#e63946', rotation: -12 }),
         el({ type: 'text', name: 'Vendido', x: -93, y: 554, width: 1300, height: 130, text: 'VENDIDO!', fontSize: 140, fontFamily: 'Bebas Neue', fill: '#ffffff', align: 'center', fontStyle: 'normal', lineHeight: 1, rotation: -12 }),
         el({ type: 'text', name: 'Mensagem', x: 60, y: 900, width: 960, height: 60, text: 'Mais um sonho realizado. Parabéns à família!', fontSize: 42, fontFamily: 'Inter', fill: '#ffffff', align: 'center', fontStyle: 'bold', lineHeight: 1 }),
-        el({ type: 'text', name: 'Corretor', x: 60, y: 980, width: 960, height: 40, text: 'Seu Nome • Corretor de Imóveis', fontSize: 34, fontFamily: 'Montserrat', fill: '#f4c95d', align: 'center', fontStyle: 'normal', lineHeight: 1 }),
+        el({ type: 'text', name: 'Corretor', x: 60, y: 980, width: 960, height: 40, ...bound('{corretor} • Corretor de Imóveis'), fontSize: 34, fontFamily: 'Montserrat', fill: '#f4c95d', align: 'center', fontStyle: 'normal', lineHeight: 1 }),
       ],
     }),
   },
@@ -339,13 +353,13 @@ export const TEMPLATES: Template[] = [
     build: () => ({
       page: { width: 1080, height: 1080, background: '#f5f1ea' },
       elements: [
-        photo('Foto principal', 40, 40, 640, 700, { cornerRadius: 20 }),
-        photo('Foto 2', 700, 40, 340, 340, { cornerRadius: 20 }),
-        photo('Foto 3', 700, 400, 340, 340, { cornerRadius: 20 }),
-        el({ type: 'text', name: 'Título', x: 50, y: 790, width: 980, height: 70, text: 'Cobertura Duplex', fontSize: 70, fontFamily: 'Playfair Display', fill: '#1d2a26', align: 'left', fontStyle: 'bold', lineHeight: 1 }),
-        el({ type: 'text', name: 'Detalhes', x: 50, y: 885, width: 980, height: 44, text: '4 suítes  •  terraço gourmet  •  vista para o mar', fontSize: 38, fontFamily: 'Inter', fill: '#5b6660', align: 'left', fontStyle: 'normal', lineHeight: 1 }),
-        el({ type: 'text', name: 'Preço', x: 50, y: 960, width: 600, height: 70, text: 'R$ 2.400.000', fontSize: 66, fontFamily: 'Montserrat', fill: '#b5532f', align: 'left', fontStyle: 'bold', lineHeight: 1 }),
-        el({ type: 'text', name: 'Contato', x: 630, y: 980, width: 400, height: 40, text: '(11) 99999-0000', fontSize: 36, fontFamily: 'Inter', fill: '#1d2a26', align: 'right', fontStyle: 'bold', lineHeight: 1 }),
+        photo('Foto principal', 40, 40, 640, 700, { cornerRadius: 20, bind: 'foto1' }),
+        photo('Foto 2', 700, 40, 340, 340, { cornerRadius: 20, bind: 'foto2' }),
+        photo('Foto 3', 700, 400, 340, 340, { cornerRadius: 20, bind: 'foto3' }),
+        el({ type: 'text', name: 'Título', x: 50, y: 790, width: 980, height: 70, ...bound('{titulo}', COBERTURA), fontSize: 70, fontFamily: 'Playfair Display', fill: '#1d2a26', align: 'left', fontStyle: 'bold', lineHeight: 1 }),
+        el({ type: 'text', name: 'Detalhes', x: 50, y: 885, width: 980, height: 44, ...bound('{detalhes}', COBERTURA), fontSize: 38, fontFamily: 'Inter', fill: '#5b6660', align: 'left', fontStyle: 'normal', lineHeight: 1 }),
+        el({ type: 'text', name: 'Preço', x: 50, y: 960, width: 600, height: 70, ...bound('{preco}', COBERTURA), fontSize: 66, fontFamily: 'Montserrat', fill: '#b5532f', align: 'left', fontStyle: 'bold', lineHeight: 1 }),
+        el({ type: 'text', name: 'Contato', x: 630, y: 980, width: 400, height: 40, ...bound('{telefone}'), fontSize: 36, fontFamily: 'Inter', fill: '#1d2a26', align: 'right', fontStyle: 'bold', lineHeight: 1 }),
       ],
     }),
   },
@@ -359,9 +373,9 @@ export const TEMPLATES: Template[] = [
         el({ type: 'text', name: 'Chamada', x: 70, y: 90, width: 940, height: 50, text: 'VOCÊ ESTÁ CONVIDADO', fontSize: 40, fontFamily: 'Montserrat', fill: '#c0632b', align: 'left', fontStyle: 'bold', lineHeight: 1 }),
         el({ type: 'text', name: 'Título', x: 70, y: 160, width: 940, height: 180, text: 'VISITA\nABERTA', fontSize: 120, fontFamily: 'Bebas Neue', fill: '#24170d', align: 'left', fontStyle: 'normal', lineHeight: 0.9 }),
         el({ type: 'text', name: 'Data', x: 600, y: 180, width: 410, height: 140, text: 'Sábado\n10h às 16h', fontSize: 52, fontFamily: 'Poppins', fill: '#24170d', align: 'right', fontStyle: 'bold', lineHeight: 1.2 }),
-        photo('Foto do imóvel', 70, 400, 940, 700, { cornerRadius: 28 }),
-        el({ type: 'text', name: 'Endereço', x: 70, y: 1150, width: 940, height: 50, text: 'Rua das Palmeiras, 250 • Vila Mariana', fontSize: 42, fontFamily: 'Inter', fill: '#24170d', align: 'left', fontStyle: 'bold', lineHeight: 1 }),
-        el({ type: 'text', name: 'Contato', x: 70, y: 1225, width: 940, height: 44, text: 'Confirme presença: (11) 99999-0000', fontSize: 38, fontFamily: 'Inter', fill: '#7a5a42', align: 'left', fontStyle: 'normal', lineHeight: 1 }),
+        photo('Foto do imóvel', 70, 400, 940, 700, { cornerRadius: 28, bind: 'foto1' }),
+        el({ type: 'text', name: 'Endereço', x: 70, y: 1150, width: 940, height: 50, ...bound('{local}'), fontSize: 42, fontFamily: 'Inter', fill: '#24170d', align: 'left', fontStyle: 'bold', lineHeight: 1 }),
+        el({ type: 'text', name: 'Contato', x: 70, y: 1225, width: 940, height: 44, ...bound('Confirme presença: {telefone}'), fontSize: 38, fontFamily: 'Inter', fill: '#7a5a42', align: 'left', fontStyle: 'normal', lineHeight: 1 }),
       ],
     }),
   },
@@ -374,11 +388,11 @@ export const TEMPLATES: Template[] = [
       elements: [
         photo('Sua foto', 80, 140, 420, 560, { cornerRadius: 24 }),
         el({ type: 'text', name: 'Chamada', x: 560, y: 170, width: 460, height: 120, text: 'Seu corretor\nde confiança', fontSize: 46, fontFamily: 'Montserrat', fill: '#f4c95d', align: 'left', fontStyle: 'bold', lineHeight: 1.2 }),
-        el({ type: 'text', name: 'Nome', x: 560, y: 330, width: 460, height: 180, text: 'Carlos\nAndrade', fontSize: 86, fontFamily: 'Playfair Display', fill: '#ffffff', align: 'left', fontStyle: 'bold', lineHeight: 1.05 }),
-        el({ type: 'text', name: 'CRECI', x: 560, y: 560, width: 460, height: 40, text: 'CRECI 00000-F', fontSize: 34, fontFamily: 'Inter', fill: '#9fb3c8', align: 'left', fontStyle: 'normal', lineHeight: 1 }),
+        el({ type: 'text', name: 'Nome', x: 560, y: 330, width: 460, height: 180, ...bound('{corretor}'), fontSize: 86, fontFamily: 'Playfair Display', fill: '#ffffff', align: 'left', fontStyle: 'bold', lineHeight: 1.05 }),
+        el({ type: 'text', name: 'CRECI', x: 560, y: 560, width: 460, height: 40, ...bound('CRECI {creci}'), fontSize: 34, fontFamily: 'Inter', fill: '#9fb3c8', align: 'left', fontStyle: 'normal', lineHeight: 1 }),
         el({ type: 'text', name: 'Especialidade', x: 560, y: 620, width: 460, height: 80, text: 'Compra, venda e locação\nem São Paulo', fontSize: 32, fontFamily: 'Inter', fill: '#ffffff', align: 'left', fontStyle: 'normal', lineHeight: 1.3 }),
         el({ type: 'rect', name: 'Barra', x: 0, y: 820, width: 1080, height: 260, fill: '#f4c95d' }),
-        el({ type: 'text', name: 'Contato', x: 80, y: 890, width: 920, height: 120, text: '(11) 99999-0000\n@seucorretor', fontSize: 52, fontFamily: 'Montserrat', fill: '#0f1c2e', align: 'left', fontStyle: 'bold', lineHeight: 1.2 }),
+        el({ type: 'text', name: 'Contato', x: 80, y: 890, width: 920, height: 120, ...bound('{telefone}\n{instagram}'), fontSize: 52, fontFamily: 'Montserrat', fill: '#0f1c2e', align: 'left', fontStyle: 'bold', lineHeight: 1.2 }),
       ],
     }),
   },
@@ -425,12 +439,12 @@ export const TEMPLATES: Template[] = [
     build: () => ({
       page: { width: 1080, height: 1920, background: '#111111' },
       elements: [
-        photo('Foto do imóvel', 0, 0, 1080, 1920),
+        photo('Foto do imóvel', 0, 0, 1080, 1920, { bind: 'foto1' }),
         el({ type: 'rect', name: 'Escurecer', x: 0, y: 0, width: 1080, height: 1920, fill: '#000000', opacity: 0.35 }),
         el({ type: 'ellipse', name: 'Play fundo', x: 440, y: 760, width: 200, height: 200, fill: '#ffffff', opacity: 0.9 }),
         el({ type: 'triangle', name: 'Play', x: 605, y: 815, width: 90, height: 110, fill: '#e63946', rotation: 90 }),
         el({ type: 'text', name: 'Título', x: 80, y: 1120, width: 920, height: 380, text: 'TOUR\nCOMPLETO', fontSize: 190, fontFamily: 'Bebas Neue', fill: '#ffffff', align: 'center', fontStyle: 'normal', lineHeight: 0.9 }),
-        el({ type: 'text', name: 'Subtítulo', x: 80, y: 1530, width: 920, height: 60, text: 'Apartamento 3 quartos nos Jardins', fontSize: 52, fontFamily: 'Poppins', fill: '#f4c95d', align: 'center', fontStyle: 'bold', lineHeight: 1 }),
+        el({ type: 'text', name: 'Subtítulo', x: 80, y: 1530, width: 920, height: 60, ...bound('{titulo} • {bairro}'), fontSize: 52, fontFamily: 'Poppins', fill: '#f4c95d', align: 'center', fontStyle: 'bold', lineHeight: 1 }),
       ],
     }),
   },
@@ -456,7 +470,7 @@ export const TEMPLATES: Template[] = [
     build: () => ({
       page: { width: 1280, height: 720, background: '#ffd400' },
       elements: [
-        photo('Foto do imóvel', 520, 0, 760, 720),
+        photo('Foto do imóvel', 520, 0, 760, 720, { bind: 'foto1' }),
         el({ type: 'text', name: 'Título', x: 50, y: 110, width: 520, height: 430, text: 'TOUR PELA\nCASA DE\nR$ 2 MILHÕES', fontSize: 130, fontFamily: 'Bebas Neue', fill: '#111111', align: 'left', fontStyle: 'normal', lineHeight: 0.92 }),
         el({ type: 'rect', name: 'Selo', x: 50, y: 580, width: 300, height: 80, fill: '#e63946', cornerRadius: 12 }),
         el({ type: 'text', name: 'Selo texto', x: 50, y: 600, width: 300, height: 44, text: 'VÍDEO NOVO', fontSize: 42, fontFamily: 'Montserrat', fill: '#ffffff', align: 'center', fontStyle: 'bold', lineHeight: 1 }),

@@ -26,6 +26,9 @@ export interface DesignElement {
   lineHeight?: number
   // imagem
   src?: string
+  // ligação com a Ficha do imóvel: texto com {campos} e foto da ficha
+  textTemplate?: string
+  bind?: 'foto1' | 'foto2' | 'foto3'
 }
 
 export interface Page {

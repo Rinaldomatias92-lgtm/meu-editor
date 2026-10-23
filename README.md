@@ -6,6 +6,7 @@ Editor de design no navegador, no estilo do Canva, feito com React, [Konva](http
 
 - **Canvas**: formas (retângulo, círculo, triângulo, estrela, linha, contorno), texto e imagens enviadas — arrastar, redimensionar e girar. Dois cliques num texto para editar.
 - **Camadas e alinhamento**: ocultar, bloquear e reordenar camadas; alinhar à página; guias magnéticas ao arrastar.
+- **Ficha do imóvel** (aba Imóvel): título, bairro, quartos, vagas, área, preço, até 3 fotos e dados do corretor, preenchidos uma vez. Os modelos de Imóveis se preenchem sozinhos; editar um texto à mão desliga ele da ficha.
 - **Modelos**: promoção, citação, story de evento, capa de apresentação, cartão de visita e tamanhos em branco.
 - **Exportação**: PNG e PDF no tamanho real do design.
 - Desfazer/refazer, atalhos de teclado, zoom e salvamento automático no navegador.

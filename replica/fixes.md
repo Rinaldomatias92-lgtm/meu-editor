@@ -47,7 +47,7 @@ Ordem pela força da evidência e pelo custo de fazer.
 
 | # | O que construir | Tamanho | Responde a |
 |---|---|---|---|
-| 1 | **Ficha do imóvel**: preencher uma vez (tipo, bairro, quartos, vagas, m², preço, fotos) e todos os modelos de imóveis se preenchem sozinhos | M | Seção 3 |
+| 1 | ✅ (feito) **Ficha do imóvel**: preencher uma vez (tipo, bairro, quartos, vagas, m², preço, fotos) e todos os modelos de imóveis se preenchem sozinhos | M | Seção 3 |
 | 2 | **Minha marca**: logo, cores, nome, CRECI e telefone salvos uma vez e aplicados em todo modelo | M | 1.2 ("cara de Canva"), seção 3 |
 | 3 | **Pacote de divulgação**: exportar de uma vez post, story, capa de Reels e miniatura do YouTube do mesmo imóvel | M | Seção 3 |
 | 4 | **100% offline**: embutir as fontes no app, sem depender do Google Fonts | P | 2.1 |
