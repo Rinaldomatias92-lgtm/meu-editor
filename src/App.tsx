@@ -38,6 +38,8 @@ export default function App() {
   const stageRef = useRef<Konva.Stage | null>(null)
   const workspaceRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const replaceInputRef = useRef<HTMLInputElement>(null)
+  const replaceTargetRef = useRef<string | null>(null)
 
   const scale = zoom ?? fitScale
   const selected = design.elements.find((e) => e.id === selectedId) ?? null
@@ -159,19 +161,23 @@ export default function App() {
     })
   }
 
-  const addImageFile = (file: File) => {
-    const reader = new FileReader()
-    reader.onload = () => {
-      const src = reader.result as string
-      const img = new window.Image()
-      img.onload = () => {
-        const max = Math.min(design.page.width, design.page.height) * 0.6
-        const ratio = Math.min(1, max / Math.max(img.width, img.height))
-        addElement({ type: 'image', name: file.name.replace(/\.[^.]+$/, ''), src, width: img.width * ratio, height: img.height * ratio })
-      }
-      img.src = src
-    }
-    reader.readAsDataURL(file)
+  const addImageFile = async (file: File) => {
+    const { src, width, height } = await readImageFile(file)
+    const max = Math.min(design.page.width, design.page.height) * 0.6
+    const ratio = Math.min(1, max / Math.max(width, height))
+    addElement({ type: 'image', name: file.name.replace(/\.[^.]+$/, ''), src, width: width * ratio, height: height * ratio })
+  }
+
+  const requestReplaceImage = (id: string) => {
+    replaceTargetRef.current = id
+    replaceInputRef.current?.click()
+  }
+
+  const replaceImageFile = async (file: File) => {
+    const id = replaceTargetRef.current
+    if (!id) return
+    const { src } = await readImageFile(file)
+    updateElement(id, { src, name: file.name.replace(/\.[^.]+$/, '') })
   }
 
   // Sem confirmação: trocar de modelo pode ser desfeito com Ctrl+Z
@@ -359,18 +365,19 @@ export default function App() {
         {tab === 'modelos' && (
           <>
             <h3>Modelos</h3>
-            <div className="template-grid">
-              {TEMPLATES.map((t) => {
-                const preview = t.build()
-                return (
-                  <button key={t.id} className="template-card" onClick={() => applyTemplate(t.build)}>
-                    <TemplateThumb design={preview} />
-                    <span className="template-name">{t.name}</span>
-                    <span className="template-cat">{t.category}</span>
-                  </button>
-                )
-              })}
-            </div>
+            {[...new Set(TEMPLATES.map((t) => t.category))].map((category) => (
+              <div key={category}>
+                <h4>{category}</h4>
+                <div className="template-grid">
+                  {TEMPLATES.filter((t) => t.category === category).map((t) => (
+                    <button key={t.id} className="template-card" onClick={() => applyTemplate(t.build)}>
+                      <TemplateThumb design={t.build()} />
+                      <span className="template-name">{t.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
             <h3>Começar em branco</h3>
             <div className="size-list">
               {SIZES.map((s) => (
@@ -472,6 +479,18 @@ export default function App() {
             stageRef={stageRef}
             onSelect={setSelectedId}
             onChange={updateElement}
+            onReplaceImage={requestReplaceImage}
+          />
+          <input
+            ref={replaceInputRef}
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={(e) => {
+              const f = e.target.files?.[0]
+              if (f) replaceImageFile(f)
+              e.target.value = ''
+            }}
           />
         </div>
         <div className="zoom-bar">
@@ -496,6 +515,7 @@ export default function App() {
             onLayer={(dir) => moveLayer(selected.id, dir)}
             onDuplicate={() => duplicateElement(selected.id)}
             onDelete={() => removeElement(selected.id)}
+            onReplaceImage={() => requestReplaceImage(selected.id)}
           />
         ) : (
           <>
@@ -554,6 +574,34 @@ export default function App() {
   )
 }
 
+const MAX_IMAGE_SIDE = 2000
+
+// Lê uma imagem enviada e reduz fotos grandes (ex.: de celular) para no máximo
+// MAX_IMAGE_SIDE px, para o design caber no armazenamento do navegador.
+function readImageFile(file: File): Promise<{ src: string; width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file)
+    const img = new window.Image()
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      const ratio = Math.min(1, MAX_IMAGE_SIDE / Math.max(img.width, img.height))
+      const width = Math.round(img.width * ratio)
+      const height = Math.round(img.height * ratio)
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      canvas.getContext('2d')!.drawImage(img, 0, 0, width, height)
+      const keepAlpha = file.type === 'image/png' || file.type === 'image/webp' || file.type === 'image/gif'
+      resolve({ src: canvas.toDataURL(keepAlpha ? 'image/png' : 'image/jpeg', 0.88), width, height })
+    }
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error('Imagem inválida'))
+    }
+    img.src = url
+  })
+}
+
 interface DownloadsApi {
   save(req: { filename: string; data: Blob }): Promise<{ status: string }>
 }
@@ -593,17 +641,27 @@ function TemplateThumb({ design }: { design: Design }) {
   const { width, height, background } = design.page
   return (
     <svg className="template-thumb" viewBox={`0 0 ${width} ${height}`} style={{ background }}>
-      {design.elements.map((e) => {
-        const p = { fill: e.fill === 'transparent' ? 'none' : e.fill, stroke: e.stroke, strokeWidth: e.strokeWidth, opacity: e.opacity }
-        const t = `rotate(${e.rotation} ${e.x} ${e.y})`
-        if (e.type === 'rect') return <rect key={e.id} x={e.x} y={e.y} width={e.width} height={e.height} rx={e.cornerRadius} transform={t} {...p} />
-        if (e.type === 'ellipse') return <ellipse key={e.id} cx={e.x + e.width / 2} cy={e.y + e.height / 2} rx={e.width / 2} ry={e.height / 2} {...p} />
-        if (e.type === 'triangle') return <polygon key={e.id} points={`${e.x + e.width / 2},${e.y} ${e.x + e.width},${e.y + e.height} ${e.x},${e.y + e.height}`} {...p} />
-        if (e.type === 'star') return <circle key={e.id} cx={e.x + e.width / 2} cy={e.y + e.height / 2} r={e.width / 3} {...p} />
-        if (e.type === 'text')
-          return (e.text ?? '').split('\n').map((line, i) => (
+      {design.elements.map((e) => (
+        <g key={e.id} transform={`rotate(${e.rotation} ${e.x} ${e.y})`} opacity={e.opacity}>
+          <ThumbShape e={e} />
+        </g>
+      ))}
+    </svg>
+  )
+}
+
+function ThumbShape({ e }: { e: DesignElement }) {
+  const p = { fill: e.fill === 'transparent' ? 'none' : e.fill, stroke: e.stroke, strokeWidth: e.strokeWidth }
+  if (e.type === 'rect') return <rect x={e.x} y={e.y} width={e.width} height={e.height} rx={e.cornerRadius} {...p} />
+  if (e.type === 'ellipse') return <ellipse cx={e.x + e.width / 2} cy={e.y + e.height / 2} rx={e.width / 2} ry={e.height / 2} {...p} />
+  if (e.type === 'triangle') return <polygon points={`${e.x + e.width / 2},${e.y} ${e.x + e.width},${e.y + e.height} ${e.x},${e.y + e.height}`} {...p} />
+  if (e.type === 'star') return <circle cx={e.x + e.width / 2} cy={e.y + e.height / 2} r={e.width / 3} {...p} />
+  if (e.type === 'image') return <image href={e.src} x={e.x} y={e.y} width={e.width} height={e.height} preserveAspectRatio="xMidYMid slice" />
+  return (
+    <>
+      {(e.text ?? '').split('\n').map((line, i) => (
             <text
-              key={e.id + i}
+              key={i}
               x={e.align === 'center' ? e.x + e.width / 2 : e.align === 'right' ? e.x + e.width : e.x}
               y={e.y + (e.fontSize ?? 32) * (e.lineHeight ?? 1.2) * i + (e.fontSize ?? 32) * 0.85}
               fontSize={e.fontSize}
@@ -615,10 +673,8 @@ function TemplateThumb({ design }: { design: Design }) {
             >
               {line}
             </text>
-          ))
-        return null
-      })}
-    </svg>
+      ))}
+    </>
   )
 }
 
@@ -629,9 +685,10 @@ interface PropertiesProps {
   onLayer: (dir: 'up' | 'down' | 'top' | 'bottom') => void
   onDuplicate: () => void
   onDelete: () => void
+  onReplaceImage: () => void
 }
 
-function Properties({ el, onChange, onAlign, onLayer, onDuplicate, onDelete }: PropertiesProps) {
+function Properties({ el, onChange, onAlign, onLayer, onDuplicate, onDelete, onReplaceImage }: PropertiesProps) {
   const bold = el.fontStyle?.includes('bold') ?? false
   const italic = el.fontStyle?.includes('italic') ?? false
   const setStyle = (b: boolean, i: boolean) => onChange({ fontStyle: [b && 'bold', i && 'italic'].filter(Boolean).join(' ') || 'normal' })
@@ -682,6 +739,19 @@ function Properties({ el, onChange, onAlign, onLayer, onDuplicate, onDelete }: P
               </button>
             ))}
           </div>
+        </>
+      )}
+
+      {el.type === 'image' && (
+        <>
+          <button className="primary wide" onClick={onReplaceImage}>
+            Trocar foto
+          </button>
+          <p className="hint">Dica: dois cliques na foto também trocam a imagem.</p>
+          <label className="field">
+            Cantos arredondados
+            <input type="number" min={0} max={2000} value={el.cornerRadius ?? 0} onChange={(e) => onChange({ cornerRadius: clampInt(e.target.value, 0, 2000) })} />
+          </label>
         </>
       )}
 

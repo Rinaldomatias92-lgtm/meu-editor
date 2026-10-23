@@ -16,6 +16,7 @@ interface CanvasProps {
   stageRef: React.RefObject<Konva.Stage | null>
   onSelect: (id: string | null) => void
   onChange: (id: string, patch: Partial<DesignElement>) => void
+  onReplaceImage: (id: string) => void
 }
 
 const SNAP_PX = 6
@@ -31,9 +32,17 @@ function useHtmlImage(src?: string) {
   return img
 }
 
+// Preenche a caixa sem distorcer: recorta o excesso da foto, centralizado
 function ImageShape({ el }: { el: DesignElement }) {
   const img = useHtmlImage(el.src)
-  return <KImage image={img} width={el.width} height={el.height} />
+  let crop
+  if (img && img.width && img.height) {
+    const scale = Math.max(el.width / img.width, el.height / img.height)
+    const cw = el.width / scale
+    const ch = el.height / scale
+    crop = { x: (img.width - cw) / 2, y: (img.height - ch) / 2, width: cw, height: ch }
+  }
+  return <KImage image={img} width={el.width} height={el.height} crop={crop} cornerRadius={el.cornerRadius ?? 0} />
 }
 
 function Shape({ el }: { el: DesignElement }) {
@@ -66,7 +75,7 @@ function Shape({ el }: { el: DesignElement }) {
   }
 }
 
-export default function Canvas({ design, scale, selectedId, fontsVersion, stageRef, onSelect, onChange }: CanvasProps) {
+export default function Canvas({ design, scale, selectedId, fontsVersion, stageRef, onSelect, onChange, onReplaceImage }: CanvasProps) {
   const { page, elements } = design
   const trRef = useRef<Konva.Transformer>(null)
   const layerRef = useRef<Konva.Layer>(null)
@@ -138,7 +147,13 @@ export default function Canvas({ design, scale, selectedId, fontsVersion, stageR
   }
 
   const startEditing = (el: DesignElement) => {
-    if (el.type !== 'text' || el.locked) return
+    if (el.locked) return
+    if (el.type === 'image') {
+      onSelect(el.id)
+      onReplaceImage(el.id)
+      return
+    }
+    if (el.type !== 'text') return
     onSelect(el.id)
     setEditing(el)
   }
