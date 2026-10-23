@@ -22,7 +22,7 @@ Editor de design no navegador, no estilo do Canva, feito com React, [Konva](http
 
 ## Abrindo pelo atalho (Windows)
 
-- **Meu Editor.bat** — clique duas vezes para abrir o editor no navegador. Ele atualiza o código (`git pull`), instala as dependências e liga o servidor. Funciona dentro da pasta do projeto ou copiado para a área de trabalho (nesse caso usa `%USERPROFILE%\\meu-editor`). Deixe a janela preta aberta enquanto usa.
+- **Meu Editor.bat** — clique duas vezes para abrir o editor no navegador. Ele atualiza o código (`git pull`), instala as dependências e liga o servidor. Funciona dentro da pasta do projeto ou copiado para a área de trabalho (nesse caso usa `%USERPROFILE%\meu-editor`). Deixe a janela preta aberta enquanto usa.
 - **Meu Editor (online).url** — abre a versão publicada, sem instalar nada.
 
 ## Rodando
