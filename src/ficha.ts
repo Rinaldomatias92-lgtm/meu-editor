@@ -84,7 +84,7 @@ export function applyFicha(design: Design, f: Ficha): Design {
     ...design,
     elements: design.elements.map((e) => {
       if (e.textTemplate) return { ...e, text: fillText(e.textTemplate, f) }
-      if (e.bind && f[e.bind]) return { ...e, src: f[e.bind] }
+      if (e.bind && e.bind !== 'logo' && f[e.bind]) return { ...e, src: f[e.bind] }
       return e
     }),
   }

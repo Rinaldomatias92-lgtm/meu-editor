@@ -32,9 +32,21 @@ function useHtmlImage(src?: string) {
   return img
 }
 
-// Preenche a caixa sem distorcer: recorta o excesso da foto, centralizado
+// Preenche a caixa sem distorcer: recorta o excesso da foto, centralizado.
+// Com fit "contain" (logos), a imagem cabe inteira, centralizada na caixa.
 function ImageShape({ el }: { el: DesignElement }) {
   const img = useHtmlImage(el.src)
+  if (el.fit === 'contain' && img && img.width && img.height) {
+    const scale = Math.min(el.width / img.width, el.height / img.height)
+    const w = img.width * scale
+    const h = img.height * scale
+    return (
+      <>
+        <Rect width={el.width} height={el.height} fill="transparent" />
+        <KImage image={img} x={(el.width - w) / 2} y={(el.height - h) / 2} width={w} height={h} />
+      </>
+    )
+  }
   let crop
   if (img && img.width && img.height) {
     const scale = Math.max(el.width / img.width, el.height / img.height)

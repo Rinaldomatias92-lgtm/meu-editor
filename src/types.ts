@@ -26,15 +26,25 @@ export interface DesignElement {
   lineHeight?: number
   // imagem
   src?: string
+  fit?: 'cover' | 'contain' // imagem: preencher recortando (padrão) ou caber inteira
   // ligação com a Ficha do imóvel: texto com {campos} e foto da ficha
   textTemplate?: string
-  bind?: 'foto1' | 'foto2' | 'foto3'
+  bind?: 'foto1' | 'foto2' | 'foto3' | 'logo'
+  // ligação com Minha marca: papel da cor e fonte, com o valor original do modelo
+  colorRole?: ColorRole
+  defaultFill?: string
+  fontRole?: 'titulo'
+  defaultFont?: string
 }
+
+export type ColorRole = 'principal' | 'destaque' | 'sobrePrincipal' | 'sobreDestaque' | 'suave'
 
 export interface Page {
   width: number
   height: number
   background: string
+  bgRole?: ColorRole
+  defaultBg?: string
 }
 
 export interface Design {

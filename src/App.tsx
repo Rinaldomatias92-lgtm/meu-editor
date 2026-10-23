@@ -6,11 +6,14 @@ import { type Design, type DesignElement, type ElementType, FONTS, newId } from 
 import { SIZES, TEMPLATES, blankDesign } from './templates'
 import { DEFAULT_FICHA, applyFicha, type Ficha, type PhotoSlot } from './ficha'
 import FichaPanel from './FichaPanel'
+import { type Marca, applyMarca } from './marca'
+import MarcaPanel from './MarcaPanel'
 import './App.css'
 
 const STORAGE_KEY = 'meu-editor:design'
 const FICHA_KEY = 'meu-editor:ficha'
-type Tab = 'modelos' | 'imovel' | 'elementos' | 'texto' | 'uploads'
+const MARCA_KEY = 'meu-editor:marca'
+type Tab = 'modelos' | 'imovel' | 'marca' | 'elementos' | 'texto' | 'uploads'
 
 interface History {
   past: Design[]
@@ -28,6 +31,16 @@ function loadInitial(): Design {
     /* sem armazenamento disponível */
   }
   return TEMPLATES[0].build()
+}
+
+function loadMarca(): Marca {
+  try {
+    const raw = localStorage.getItem(MARCA_KEY)
+    if (raw) return JSON.parse(raw) as Marca
+  } catch {
+    /* sem armazenamento disponível */
+  }
+  return {}
 }
 
 function loadFicha(): Ficha {
@@ -51,6 +64,7 @@ export default function App() {
   const [exporting, setExporting] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [ficha, setFicha] = useState<Ficha>(loadFicha)
+  const [marca, setMarca] = useState<Marca>(loadMarca)
   const stageRef = useRef<Konva.Stage | null>(null)
   const workspaceRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -78,7 +92,11 @@ export default function App() {
   // Editar um texto ligado à ficha à mão desliga a ligação, para a ficha não sobrescrever
   const updateElement = useCallback(
     (id: string, patch: Partial<DesignElement>) => {
-      const unbind = 'text' in patch && !('textTemplate' in patch) ? { textTemplate: undefined } : {}
+      const unbind = {
+        ...('text' in patch && !('textTemplate' in patch) ? { textTemplate: undefined } : {}),
+        ...('fill' in patch && !('colorRole' in patch) ? { colorRole: undefined } : {}),
+        ...('fontFamily' in patch && !('fontRole' in patch) ? { fontRole: undefined } : {}),
+      }
       commit((d) => ({ ...d, elements: d.elements.map((e) => (e.id === id ? { ...e, ...patch, ...unbind } : e)) }))
     },
     [commit],
@@ -92,6 +110,20 @@ export default function App() {
     },
     [commit, ficha],
   )
+
+  const updateMarca = useCallback(
+    (patch: Partial<Marca>) => {
+      const next = { ...marca, ...patch }
+      setMarca(next)
+      commit((d) => applyMarca(d, next), 'marca')
+    },
+    [commit, marca],
+  )
+
+  const setLogo = async (file: File) => {
+    const { src } = await readImageFile(file)
+    updateMarca({ logo: src })
+  }
 
   const setFichaPhoto = async (slot: PhotoSlot, file: File) => {
     const { src } = await readImageFile(file)
@@ -216,13 +248,14 @@ export default function App() {
     const { src } = await readImageFile(file)
     const target = design.elements.find((e) => e.id === id)
     // Foto ligada à ficha: troca na ficha, e todos os modelos passam a usá-la
-    if (target?.bind) updateFicha({ [target.bind]: src })
+    if (target?.bind === 'logo') updateMarca({ logo: src })
+    else if (target?.bind) updateFicha({ [target.bind]: src })
     else updateElement(id, { src, name: file.name.replace(/\.[^.]+$/, '') })
   }
 
   // Sem confirmação: trocar de modelo pode ser desfeito com Ctrl+Z
   const applyTemplate = (build: () => Design) => {
-    commit(() => applyFicha(build(), ficha))
+    commit(() => applyMarca(applyFicha(build(), ficha), marca))
     setSelectedId(null)
     setZoom(null)
   }
@@ -277,6 +310,14 @@ export default function App() {
       setNotice('O design não pôde ser salvo no navegador: as fotos ocupam espaço demais.')
     }
   }, [design])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(MARCA_KEY, JSON.stringify(marca))
+    } catch {
+      setNotice('A marca não pôde ser salva no navegador: a logo ocupa espaço demais.')
+    }
+  }, [marca])
 
   useEffect(() => {
     try {
@@ -398,6 +439,7 @@ export default function App() {
           [
             ['modelos', '▦', 'Modelos'],
             ['imovel', '⌂', 'Imóvel'],
+            ['marca', '✦', 'Marca'],
             ['elementos', '◯', 'Elementos'],
             ['texto', 'T', 'Texto'],
             ['uploads', '⇪', 'Uploads'],
@@ -487,6 +529,7 @@ export default function App() {
           </>
         )}
         {tab === 'imovel' && <FichaPanel ficha={ficha} onChange={updateFicha} onPhoto={setFichaPhoto} />}
+        {tab === 'marca' && <MarcaPanel marca={marca} onChange={updateMarca} onLogo={setLogo} />}
         {tab === 'uploads' && (
           <>
             <h3>Uploads</h3>
@@ -691,7 +734,7 @@ function TemplateThumb({ design }: { design: Design }) {
   const { width, height, background } = design.page
   return (
     <svg className="template-thumb" viewBox={`0 0 ${width} ${height}`} style={{ background }}>
-      {design.elements.map((e) => (
+      {design.elements.filter((e) => !e.hidden).map((e) => (
         <g key={e.id} transform={`rotate(${e.rotation} ${e.x} ${e.y})`} opacity={e.opacity}>
           <ThumbShape e={e} />
         </g>
@@ -706,7 +749,7 @@ function ThumbShape({ e }: { e: DesignElement }) {
   if (e.type === 'ellipse') return <ellipse cx={e.x + e.width / 2} cy={e.y + e.height / 2} rx={e.width / 2} ry={e.height / 2} {...p} />
   if (e.type === 'triangle') return <polygon points={`${e.x + e.width / 2},${e.y} ${e.x + e.width},${e.y + e.height} ${e.x},${e.y + e.height}`} {...p} />
   if (e.type === 'star') return <circle cx={e.x + e.width / 2} cy={e.y + e.height / 2} r={e.width / 3} {...p} />
-  if (e.type === 'image') return <image href={e.src} x={e.x} y={e.y} width={e.width} height={e.height} preserveAspectRatio="xMidYMid slice" />
+  if (e.type === 'image') return <image href={e.src} x={e.x} y={e.y} width={e.width} height={e.height} preserveAspectRatio={e.fit === 'contain' ? 'xMidYMid meet' : 'xMidYMid slice'} />
   return (
     <>
       {(e.text ?? '').split('\n').map((line, i) => (
@@ -750,7 +793,15 @@ function Properties({ el, onChange, onAlign, onLayer, onDuplicate, onDelete, onR
         {el.locked && <span className="badge">bloqueado</span>}
       </h3>
 
-      {(el.textTemplate || el.bind) && (
+      {(el.colorRole || el.fontRole || el.bind === 'logo') && (
+        <p className="hint linked">
+          {el.bind === 'logo'
+            ? 'Sua logo, da aba Marca: trocar aqui troca em todos os modelos.'
+            : 'Cor ou fonte da aba Marca. Se mudar aqui, este elemento deixa de seguir a marca.'}
+        </p>
+      )}
+
+      {(el.textTemplate || (el.bind && el.bind !== 'logo')) && (
         <p className="hint linked">
           {el.textTemplate
             ? 'Ligado à Ficha do imóvel: mude na aba Imóvel. Se editar aqui, este texto deixa de seguir a ficha.'
