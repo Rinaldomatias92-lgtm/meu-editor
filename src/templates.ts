@@ -325,7 +325,7 @@ export const TEMPLATES: Template[] = [
   },
   {
     id: 'imovel-aluguel',
-    name: 'Para alugar',
+    name: 'Story do imóvel',
     category: 'Imóveis',
     build: () => ({
       page: { width: 1080, height: 1920, background: '#111111' },
@@ -405,7 +405,7 @@ export const TEMPLATES: Template[] = [
         el({ type: 'text', name: 'CRECI', x: 560, y: 560, width: 460, height: 40, ...bound('CRECI {creci}'), fontSize: 34, fontFamily: 'Inter', ...role('suave', '#9fb3c8'), align: 'left', fontStyle: 'normal', lineHeight: 1 }),
         el({ type: 'text', name: 'Especialidade', x: 560, y: 620, width: 460, height: 80, text: 'Compra, venda e locação\nem São Paulo', fontSize: 32, fontFamily: 'Inter', ...role('sobrePrincipal', '#ffffff'), align: 'left', fontStyle: 'normal', lineHeight: 1.3 }),
         el({ type: 'rect', name: 'Barra', x: 0, y: 820, width: 1080, height: 260, ...role('destaque', '#f4c95d') }),
-        el({ type: 'text', name: 'Contato', x: 80, y: 890, width: 920, height: 120, ...bound('{telefone}\n{instagram}'), fontSize: 52, fontFamily: 'Montserrat', ...role('sobreDestaque', '#0f1c2e'), align: 'left', fontStyle: 'bold', lineHeight: 1.2 }),
+        el({ type: 'text', name: 'Contato', x: 80, y: 890, width: 920, height: 130, ...bound('{telefone}\n{instagram}'), fontSize: 52, fontFamily: 'Montserrat', ...role('sobreDestaque', '#0f1c2e'), align: 'left', fontStyle: 'bold', lineHeight: 1.2 }),
         logo(780, 860, 220, 180),
       ],
     }),

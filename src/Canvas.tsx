@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Stage, Layer, Rect, Ellipse, Line, Star, Text, Image as KImage, Group, Transformer } from 'react-konva'
-import type Konva from 'konva'
+import Konva from 'konva'
 import type { Design, DesignElement } from './types'
 
 interface Guide {
@@ -21,13 +21,34 @@ interface CanvasProps {
 
 const SNAP_PX = 6
 
+// Imagens já carregadas, por src: permite desenhar na hora quando já estão em cache
+const imageCache = new Map<string, HTMLImageElement>()
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  const cached = imageCache.get(src)
+  if (cached) return Promise.resolve(cached)
+  return new Promise((resolve) => {
+    const i = new window.Image()
+    i.onload = () => {
+      imageCache.set(src, i)
+      resolve(i)
+    }
+    i.onerror = () => resolve(i)
+    i.src = src
+  })
+}
+
+export const preloadImages = (srcs: string[]) => Promise.all(srcs.map(loadImage)).then(() => undefined)
+
 function useHtmlImage(src?: string) {
-  const [img, setImg] = useState<HTMLImageElement>()
+  const [img, setImg] = useState<HTMLImageElement | undefined>(() => (src ? imageCache.get(src) : undefined))
   useEffect(() => {
     if (!src) return
-    const i = new window.Image()
-    i.onload = () => setImg(i)
-    i.src = src
+    let alive = true
+    loadImage(src).then((i) => alive && setImg(i))
+    return () => {
+      alive = false
+    }
   }, [src])
   return img
 }
@@ -57,7 +78,29 @@ function ImageShape({ el }: { el: DesignElement }) {
   return <KImage image={img} width={el.width} height={el.height} crop={crop} cornerRadius={el.cornerRadius ?? 0} />
 }
 
-function Shape({ el }: { el: DesignElement }) {
+// Textos ligados à ficha mudam de tamanho conforme os dados: a fonte diminui
+// (até a metade) para o texto caber na altura reservada pelo modelo.
+let measurer: Konva.Text | null = null
+function fitFontSize(el: DesignElement) {
+  const max = el.fontSize ?? 32
+  measurer ??= new Konva.Text({})
+  measurer.setAttrs({
+    text: el.text,
+    width: el.width,
+    fontFamily: el.fontFamily,
+    fontStyle: el.fontStyle,
+    lineHeight: el.lineHeight ?? 1.2,
+  })
+  let size = max
+  while (size > max / 2) {
+    measurer.fontSize(size)
+    if (measurer.height() <= el.height + 1) break
+    size = Math.floor(size * 0.94)
+  }
+  return size
+}
+
+export function Shape({ el }: { el: DesignElement }) {
   const { width: w, height: h } = el
   const paint = { fill: el.fill, stroke: el.stroke, strokeWidth: el.stroke ? el.strokeWidth ?? 0 : 0 }
   switch (el.type) {
@@ -74,7 +117,7 @@ function Shape({ el }: { el: DesignElement }) {
         <Text
           width={w}
           text={el.text}
-          fontSize={el.fontSize}
+          fontSize={el.textTemplate ? fitFontSize(el) : el.fontSize}
           fontFamily={el.fontFamily}
           fontStyle={el.fontStyle}
           align={el.align}

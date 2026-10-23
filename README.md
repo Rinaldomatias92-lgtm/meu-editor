@@ -8,6 +8,7 @@ Editor de design no navegador, no estilo do Canva, feito com React, [Konva](http
 - **Camadas e alinhamento**: ocultar, bloquear e reordenar camadas; alinhar à página; guias magnéticas ao arrastar.
 - **Ficha do imóvel** (aba Imóvel): título, bairro, quartos, vagas, área, preço, até 3 fotos e dados do corretor, preenchidos uma vez. Os modelos de Imóveis se preenchem sozinhos; editar um texto à mão desliga ele da ficha.
 - **Minha marca** (aba Marca): logo, cor principal, cor de destaque e fonte dos títulos aplicadas aos modelos de Imóveis e capas de vídeo. O texto sobre as cores troca entre claro e escuro para continuar legível, e o painel avisa quando as duas cores têm pouco contraste.
+- **Pacote de divulgação** (botão no topo): gera de uma vez post do feed, post com 3 fotos, story, capa de Reels/TikTok e miniatura do YouTube do mesmo imóvel, com a ficha e a marca aplicadas. Baixa uma a uma ou tudo num .zip. Textos ligados à ficha diminuem a fonte para caber no espaço do modelo.
 - **Modelos**: promoção, citação, story de evento, capa de apresentação, cartão de visita e tamanhos em branco.
 - **Exportação**: PNG e PDF no tamanho real do design.
 - Desfazer/refazer, atalhos de teclado, zoom e salvamento automático no navegador.

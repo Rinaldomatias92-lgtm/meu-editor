@@ -573,3 +573,129 @@
   border-radius: 4px;
   letter-spacing: 0.04em;
 }
+
+/* pacote de divulgação */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(10, 10, 20, 0.55);
+  display: grid;
+  place-items: center;
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px))
+    max(16px, env(safe-area-inset-left, 0px));
+}
+.modal {
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 16px;
+  width: min(1100px, 100%);
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+.modal-head,
+.modal-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+}
+.modal-head {
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+.modal-head h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+}
+.modal-head .hint {
+  margin: 0;
+}
+.modal-foot {
+  border-top: 1px solid var(--border);
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+.modal-foot .hint {
+  margin: 0 auto 0 0;
+  font-size: 13px;
+}
+.modal button {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+.modal button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+.modal button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.modal button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+.modal button.close {
+  background: none;
+  border: 0;
+  font-size: 18px;
+}
+.pacote-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 14px;
+  padding: 20px;
+  overflow-y: auto;
+}
+.pacote-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px;
+  min-width: 0;
+}
+.pacote-card.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.pacote-check {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  cursor: pointer;
+}
+.pacote-check input {
+  margin-top: 3px;
+  accent-color: var(--accent);
+}
+.pacote-check span {
+  display: flex;
+  flex-direction: column;
+}
+.pacote-check small {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.pacote-preview {
+  height: 220px;
+  display: grid;
+  place-items: center;
+  background: var(--surface-2);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.pacote-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}

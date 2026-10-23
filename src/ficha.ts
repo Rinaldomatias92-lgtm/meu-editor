@@ -38,7 +38,9 @@ export const DEFAULT_FICHA: Ficha = {
   instagram: '@seucorretor',
 }
 
-const plural = (n: string, um: string, varios: string) => (n.trim() === '1' ? `1 ${um}` : `${n.trim()} ${varios}`)
+// Espaço inseparável: "3 quartos" e "98 m²" nunca se partem na quebra de linha
+const NBSP = '\u00a0'
+const plural = (n: string, um: string, varios: string) => (n.trim() === '1' ? `1${NBSP}${um}` : `${n.trim()}${NBSP}${varios}`)
 
 export function formatPreco(f: Ficha) {
   const n = Number(f.preco.replace(/\D/g, ''))
@@ -53,7 +55,7 @@ export function formatDetalhes(f: Ficha) {
     f.quartos.trim() && plural(f.quartos, 'quarto', 'quartos'),
     f.banheiros.trim() && plural(f.banheiros, 'banheiro', 'banheiros'),
     f.vagas.trim() && plural(f.vagas, 'vaga', 'vagas'),
-    f.area.trim() && `${f.area.trim()} m²`,
+    f.area.trim() && `${f.area.trim()}${NBSP}m²`,
   ]
     .filter(Boolean)
     .join('  •  ')

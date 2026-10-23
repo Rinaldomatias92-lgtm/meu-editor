@@ -49,7 +49,7 @@ Ordem pela força da evidência e pelo custo de fazer.
 |---|---|---|---|
 | 1 | ✅ (feito) **Ficha do imóvel**: preencher uma vez (tipo, bairro, quartos, vagas, m², preço, fotos) e todos os modelos de imóveis se preenchem sozinhos | M | Seção 3 |
 | 2 | ✅ (feito) **Minha marca**: logo, cores, nome, CRECI e telefone salvos uma vez e aplicados em todo modelo | M | 1.2 ("cara de Canva"), seção 3 |
-| 3 | **Pacote de divulgação**: exportar de uma vez post, story, capa de Reels e miniatura do YouTube do mesmo imóvel | M | Seção 3 |
+| 3 | ✅ (feito) **Pacote de divulgação**: exportar de uma vez post, story, capa de Reels e miniatura do YouTube do mesmo imóvel | M | Seção 3 |
 | 4 | **100% offline**: embutir as fontes no app, sem depender do Google Fonts | P | 2.1 |
 | 5 | **Busca e filtro de modelos** | P | 1.5 |
 | 6 | Manter leve com fotos grandes (já reduz para 2000 px; medir com 10+ fotos) | P | 1.3 |

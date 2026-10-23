@@ -11,6 +11,7 @@
     "build:artifact": "tsc -b && vite build --mode artifact && node scripts/artifact-page.mjs"
   },
   "dependencies": {
+    "fflate": "^0.8.2",
     "jspdf": "^3.0.1",
     "konva": "^9.3.20",
     "react": "^19.1.0",

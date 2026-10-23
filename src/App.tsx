@@ -8,6 +8,8 @@ import { DEFAULT_FICHA, applyFicha, type Ficha, type PhotoSlot } from './ficha'
 import FichaPanel from './FichaPanel'
 import { type Marca, applyMarca } from './marca'
 import MarcaPanel from './MarcaPanel'
+import { readImageFile, saveFile } from './files'
+import PacoteModal from './PacoteModal'
 import './App.css'
 
 const STORAGE_KEY = 'meu-editor:design'
@@ -65,6 +67,7 @@ export default function App() {
   const [notice, setNotice] = useState<string | null>(null)
   const [ficha, setFicha] = useState<Ficha>(loadFicha)
   const [marca, setMarca] = useState<Marca>(loadMarca)
+  const [pacoteOpen, setPacoteOpen] = useState(false)
   const stageRef = useRef<Konva.Stage | null>(null)
   const workspaceRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -356,6 +359,10 @@ export default function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (pacoteOpen) {
+        if (e.key === 'Escape') setPacoteOpen(false)
+        return
+      }
       const t = e.target as HTMLElement
       if (t.closest('input, textarea, select, [contenteditable]')) return
       const mod = e.ctrlKey || e.metaKey
@@ -384,7 +391,7 @@ export default function App() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [undo, redo, selectedId, selected, duplicateElement, removeElement, updateElement])
+  }, [undo, redo, selectedId, selected, duplicateElement, removeElement, updateElement, pacoteOpen])
 
   // ---------- UI ----------
   const sizeMatch = SIZES.find((s) => s.width === design.page.width && s.height === design.page.height)
@@ -425,6 +432,7 @@ export default function App() {
               {notice}
             </span>
           )}
+          <button onClick={() => setPacoteOpen(true)}>Pacote de divulgação</button>
           <button onClick={() => exportAs('png')} disabled={exporting}>
             Baixar PNG
           </button>
@@ -663,62 +671,10 @@ export default function App() {
           {!design.elements.length && <li className="hint">Nenhum elemento ainda.</li>}
         </ul>
       </aside>
+
+      {pacoteOpen && <PacoteModal ficha={ficha} marca={marca} onClose={() => setPacoteOpen(false)} />}
     </div>
   )
-}
-
-const MAX_IMAGE_SIDE = 2000
-
-// Lê uma imagem enviada e reduz fotos grandes (ex.: de celular) para no máximo
-// MAX_IMAGE_SIDE px, para o design caber no armazenamento do navegador.
-function readImageFile(file: File): Promise<{ src: string; width: number; height: number }> {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file)
-    const img = new window.Image()
-    img.onload = () => {
-      URL.revokeObjectURL(url)
-      const ratio = Math.min(1, MAX_IMAGE_SIDE / Math.max(img.width, img.height))
-      const width = Math.round(img.width * ratio)
-      const height = Math.round(img.height * ratio)
-      const canvas = document.createElement('canvas')
-      canvas.width = width
-      canvas.height = height
-      canvas.getContext('2d')!.drawImage(img, 0, 0, width, height)
-      const keepAlpha = file.type === 'image/png' || file.type === 'image/webp' || file.type === 'image/gif'
-      resolve({ src: canvas.toDataURL(keepAlpha ? 'image/png' : 'image/jpeg', 0.88), width, height })
-    }
-    img.onerror = () => {
-      URL.revokeObjectURL(url)
-      reject(new Error('Imagem inválida'))
-    }
-    img.src = url
-  })
-}
-
-interface DownloadsApi {
-  save(req: { filename: string; data: Blob }): Promise<{ status: string }>
-}
-interface ClaudeRuntime {
-  use(name: 'downloads'): Promise<DownloadsApi | null>
-}
-
-// Publicado no claude.ai, downloads passam pela capacidade "downloads";
-// rodando localmente, usa um link de download comum.
-async function saveFile(blob: Blob, filename: string): Promise<'saved' | 'unavailable'> {
-  const runtime = (window as unknown as { claude?: ClaudeRuntime }).claude
-  if (runtime?.use) {
-    const downloads = await runtime.use('downloads')
-    if (!downloads) return 'unavailable'
-    await downloads.save({ filename, data: blob })
-    return 'saved'
-  }
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.click()
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
-  return 'saved'
 }
 
 const TYPE_ICON: Record<ElementType, string> = { rect: '▭', ellipse: '◯', triangle: '△', star: '☆', text: 'T', image: '▣' }
