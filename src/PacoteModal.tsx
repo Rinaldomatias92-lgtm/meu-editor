@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { zipSync } from 'fflate'
 import { type Ficha, applyFicha } from './ficha'
 import { type Marca, applyMarca } from './marca'
@@ -16,7 +16,6 @@ const FORMATOS = [
 ]
 
 interface Arte {
-  slug: string
   blob: Blob
   url: string
 }
@@ -29,6 +28,8 @@ const slugify = (s: string) =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '') || 'imovel'
 
+type Generation = { status: 'loading' | 'failed' } | { status: 'ready'; arte: Arte }
+
 interface PacoteModalProps {
   ficha: Ficha
   marca: Marca
@@ -36,7 +37,8 @@ interface PacoteModalProps {
 }
 
 export default function PacoteModal({ ficha, marca, onClose }: PacoteModalProps) {
-  const [artes, setArtes] = useState<Record<string, Arte>>({})
+  const [generation, setGeneration] = useState<Partial<Record<string, Generation>>>({})
+  const generateRef = useRef<((format: (typeof FORMATOS)[number]) => Promise<void>) | null>(null)
   const [selected, setSelected] = useState<Set<string>>(() => new Set(FORMATOS.map((f) => f.slug)))
   const [status, setStatus] = useState<string | null>(null)
   const base = slugify(ficha.titulo)
@@ -44,24 +46,35 @@ export default function PacoteModal({ ficha, marca, onClose }: PacoteModalProps)
   useEffect(() => {
     let alive = true
     const urls: string[] = []
-    ;(async () => {
-      for (const f of FORMATOS) {
-        const t = TEMPLATES.find((x) => x.id === f.template)
-        if (!t) continue
-        const blob = await renderDesign(applyMarca(applyFicha(t.build(), ficha), marca))
+    const generate = async (format: (typeof FORMATOS)[number]) => {
+      if (!alive) return
+      setGeneration((current) => ({ ...current, [format.slug]: { status: 'loading' } }))
+      try {
+        const template = TEMPLATES.find((item) => item.id === format.template)
+        if (!template) throw new Error('Modelo indisponível')
+        const blob = await renderDesign(applyMarca(applyFicha(template.build(), ficha), marca))
         if (!alive) return
         const url = URL.createObjectURL(blob)
         urls.push(url)
-        setArtes((a) => ({ ...a, [f.slug]: { slug: f.slug, blob, url } }))
+        setGeneration((current) => ({ ...current, [format.slug]: { status: 'ready', arte: { blob, url } } }))
+      } catch {
+        if (alive) setGeneration((current) => ({ ...current, [format.slug]: { status: 'failed' } }))
       }
-    })()
+    }
+    generateRef.current = generate
+    setGeneration({})
+    const generateAll = async () => {
+      for (const format of FORMATOS) await generate(format)
+    }
+    void generateAll()
     return () => {
       alive = false
-      urls.forEach((u) => URL.revokeObjectURL(u))
+      generateRef.current = null
+      urls.forEach((url) => URL.revokeObjectURL(url))
     }
   }, [ficha, marca])
 
-  const ready = FORMATOS.every((f) => artes[f.slug])
+  const ready = selected.size > 0 && [...selected].every((slug) => generation[slug]?.status === 'ready')
 
   const save = async (blob: Blob, filename: string) => {
     setStatus(null)
@@ -74,14 +87,20 @@ export default function PacoteModal({ ficha, marca, onClose }: PacoteModalProps)
   }
 
   const saveZip = async () => {
-    const files: Record<string, Uint8Array> = {}
-    for (const f of FORMATOS) {
-      if (!selected.has(f.slug) || !artes[f.slug]) continue
-      files[`${base}-${f.slug}.png`] = new Uint8Array(await artes[f.slug].blob.arrayBuffer())
+    if (!ready) return
+    try {
+      const files: Record<string, Uint8Array> = {}
+      for (const slug of selected) {
+        const item = generation[slug]
+        if (item?.status !== 'ready') return
+        files[`${base}-${slug}.png`] = new Uint8Array(await item.arte.blob.arrayBuffer())
+      }
+      // PNG já é comprimido: guardar sem recomprimir deixa o zip rápido
+      const zip = zipSync(files, { level: 0 })
+      await save(new Blob([zip], { type: 'application/zip' }), `${base}-pacote.zip`)
+    } catch {
+      setStatus('Não foi possível montar o pacote. Tente de novo.')
     }
-    // PNG já é comprimido: guardar sem recomprimir deixa o zip rápido
-    const zip = zipSync(files, { level: 0 })
-    await save(new Blob([zip], { type: 'application/zip' }), `${base}-pacote.zip`)
   }
 
   const toggle = (slug: string) =>
@@ -109,7 +128,8 @@ export default function PacoteModal({ ficha, marca, onClose }: PacoteModalProps)
 
         <div className="pacote-grid">
           {FORMATOS.map((f) => {
-            const arte = artes[f.slug]
+            const item = generation[f.slug]
+            const arte = item?.status === 'ready' ? item.arte : undefined
             return (
               <div key={f.slug} className={selected.has(f.slug) ? 'pacote-card on' : 'pacote-card'}>
                 <label className="pacote-check">
@@ -119,7 +139,13 @@ export default function PacoteModal({ ficha, marca, onClose }: PacoteModalProps)
                     <small>{f.size}</small>
                   </span>
                 </label>
-                <div className="pacote-preview">{arte ? <img src={arte.url} alt={f.label} /> : <span className="hint">Gerando…</span>}</div>
+                <div className="pacote-preview">
+                  {arte && <img src={arte.url} alt={f.label} />}
+                  {!arte && <span className="hint">{item?.status === 'failed' ? 'Falha ao gerar esta arte.' : 'Gerando…'}</span>}
+                </div>
+                {item?.status === 'failed' && (
+                  <button onClick={() => void generateRef.current?.(f)}>Tentar novamente</button>
+                )}
                 <button disabled={!arte} onClick={() => arte && save(arte.blob, `${base}-${f.slug}.png`)}>
                   Baixar PNG
                 </button>
@@ -135,8 +161,8 @@ export default function PacoteModal({ ficha, marca, onClose }: PacoteModalProps)
             </span>
           )}
           <span className="hint">Para trocar textos ou fotos, edite a Ficha do imóvel e abra o pacote de novo.</span>
-          <button className="primary" disabled={!ready || selected.size === 0} onClick={saveZip}>
-            {ready ? `Baixar ${selected.size} ${selected.size === 1 ? 'arte' : 'artes'} (.zip)` : 'Gerando…'}
+          <button className="primary" disabled={!ready} onClick={saveZip}>
+            {ready ? `Baixar ${selected.size} ${selected.size === 1 ? 'arte' : 'artes'} (.zip)` : 'Baixar seleção (.zip)'}
           </button>
         </footer>
       </div>

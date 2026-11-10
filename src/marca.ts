@@ -23,7 +23,8 @@ export function contrast(a: string, b: string) {
 }
 
 // Preto ou branco, o que for mais legível sobre a cor de fundo
-export const textOn = (bg: string) => (luminance(bg) > 0.4 ? '#141414' : '#ffffff')
+export const textOn = (bg: string) =>
+  contrast(bg, '#141414') >= contrast(bg, '#ffffff') ? '#141414' : '#ffffff'
 
 function mix(a: string, b: string, t: number) {
   const pa = parseInt(a.slice(1), 16)

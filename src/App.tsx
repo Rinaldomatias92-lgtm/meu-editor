@@ -17,10 +17,16 @@ const FICHA_KEY = 'meu-editor:ficha'
 const MARCA_KEY = 'meu-editor:marca'
 type Tab = 'modelos' | 'imovel' | 'marca' | 'elementos' | 'texto' | 'uploads'
 
+interface EditorState {
+  design: Design
+  ficha: Ficha
+  marca: Marca
+}
+
 interface History {
-  past: Design[]
-  present: Design
-  future: Design[]
+  past: EditorState[]
+  present: EditorState
+  future: EditorState[]
   // Mudanças seguidas com a mesma chave (ex.: digitar na ficha) viram um só passo de desfazer
   mergeKey?: string
 }
@@ -56,8 +62,12 @@ function loadFicha(): Ficha {
 }
 
 export default function App() {
-  const [history, setHistory] = useState<History>(() => ({ past: [], present: loadInitial(), future: [] }))
-  const design = history.present
+  const [history, setHistory] = useState<History>(() => ({
+    past: [],
+    present: { design: loadInitial(), ficha: loadFicha(), marca: loadMarca() },
+    future: [],
+  }))
+  const { design, ficha, marca } = history.present
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [tab, setTab] = useState<Tab>('modelos')
   const [zoom, setZoom] = useState<number | null>(null) // null = ajustar à tela
@@ -65,8 +75,6 @@ export default function App() {
   const [fontsVersion, setFontsVersion] = useState(0)
   const [exporting, setExporting] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
-  const [ficha, setFicha] = useState<Ficha>(loadFicha)
-  const [marca, setMarca] = useState<Marca>(loadMarca)
   const [pacoteOpen, setPacoteOpen] = useState(false)
   const stageRef = useRef<Konva.Stage | null>(null)
   const workspaceRef = useRef<HTMLDivElement>(null)
@@ -78,13 +86,16 @@ export default function App() {
   const selected = design.elements.find((e) => e.id === selectedId) ?? null
 
   // ---------- histórico ----------
-  const commit = useCallback((fn: (d: Design) => Design, mergeKey?: string) => {
+  const commitEditor = useCallback((fn: (state: EditorState) => EditorState, mergeKey?: string) => {
     setHistory((h) =>
       mergeKey && h.mergeKey === mergeKey
         ? { ...h, present: fn(h.present), future: [] }
         : { past: [...h.past.slice(-60), h.present], present: fn(h.present), future: [], mergeKey },
     )
   }, [])
+  const commit = useCallback((fn: (d: Design) => Design) => {
+    commitEditor((state) => ({ ...state, design: fn(state.design) }))
+  }, [commitEditor])
   const undo = useCallback(() => {
     setHistory((h) => (h.past.length ? { past: h.past.slice(0, -1), present: h.past[h.past.length - 1], future: [h.present, ...h.future] } : h))
   }, [])
@@ -106,31 +117,33 @@ export default function App() {
   )
 
   const updateFicha = useCallback(
-    (patch: Partial<Ficha>) => {
-      const next = { ...ficha, ...patch }
-      setFicha(next)
-      commit((d) => applyFicha(d, next), 'ficha')
+    (patch: Partial<Ficha>, mergeKey: string | null = 'ficha') => {
+      commitEditor((state) => {
+        const next = { ...state.ficha, ...patch }
+        return { ...state, ficha: next, design: applyFicha(state.design, next) }
+      }, mergeKey ?? undefined)
     },
-    [commit, ficha],
+    [commitEditor],
   )
 
   const updateMarca = useCallback(
-    (patch: Partial<Marca>) => {
-      const next = { ...marca, ...patch }
-      setMarca(next)
-      commit((d) => applyMarca(d, next), 'marca')
+    (patch: Partial<Marca>, mergeKey: string | null = 'marca') => {
+      commitEditor((state) => {
+        const next = { ...state.marca, ...patch }
+        return { ...state, marca: next, design: applyMarca(state.design, next) }
+      }, mergeKey ?? undefined)
     },
-    [commit, marca],
+    [commitEditor],
   )
 
   const setLogo = async (file: File) => {
     const { src } = await readImageFile(file)
-    updateMarca({ logo: src })
+    updateMarca({ logo: src }, null)
   }
 
   const setFichaPhoto = async (slot: PhotoSlot, file: File) => {
     const { src } = await readImageFile(file)
-    updateFicha({ [slot]: src })
+    updateFicha({ [slot]: src }, null)
   }
 
   const addElement = useCallback(
@@ -251,14 +264,18 @@ export default function App() {
     const { src } = await readImageFile(file)
     const target = design.elements.find((e) => e.id === id)
     // Foto ligada à ficha: troca na ficha, e todos os modelos passam a usá-la
-    if (target?.bind === 'logo') updateMarca({ logo: src })
-    else if (target?.bind) updateFicha({ [target.bind]: src })
+    if (target?.bind === 'logo') updateMarca({ logo: src }, null)
+    else if (target?.bind) updateFicha({ [target.bind]: src }, null)
     else updateElement(id, { src, name: file.name.replace(/\.[^.]+$/, '') })
   }
 
   // Sem confirmação: trocar de modelo pode ser desfeito com Ctrl+Z
   const applyTemplate = (build: () => Design) => {
-    commit(() => applyMarca(applyFicha(build(), ficha), marca))
+    const template = build()
+    commitEditor((state) => ({
+      ...state,
+      design: applyMarca(applyFicha(template, state.ficha), state.marca),
+    }))
     setSelectedId(null)
     setZoom(null)
   }
